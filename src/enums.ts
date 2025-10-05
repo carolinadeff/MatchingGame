@@ -4,6 +4,7 @@ export enum MessageId {
   PLAYED = 2,
   CHANGE_PLAYER = 3,
   FINISH_GAME = 4,
+  RESTART = 5,
 }
 
 export enum StartOption {
@@ -13,9 +14,9 @@ export enum StartOption {
 }
 
 export enum GameState {
-  UNINITIALIZED = "uninitialized",
-  WAITING = "waiting",
-  PLAYING = "playing",
-  FINISHED = "finished",
-  ABORTED = "aborted",
+  UNINITIALIZED = 'uninitialized',
+  WAITING = 'waiting',
+  PLAYING = 'playing',
+  FINISHED = 'finished',
+  ABORTED = 'aborted',
 }

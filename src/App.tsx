@@ -2,9 +2,10 @@ import './App.css';
 import { useState } from 'react';
 import LandingPage from './LandingPage';
 import AppManager from './AppManager.ts';
-import type { GameDetails, WaitingGame, TCard, PlayerName, GameId } from './types.ts';
+import type { GameDetails, WaitingGame, TCard, PlayerName, GameId, PlayerId } from './types.ts';
 import { GameState, StartOption } from './enums.ts';
 import CardPanel from './components/CardPanel.tsx';
+import EndGameOverlayer from './components/EndGameOverlayer.tsx';
 
 const gameDetailsInitial = {
   id: -1,
@@ -21,6 +22,7 @@ function App() {
 
   const observerCallbacks = {
     onWelcome: (currentGames: WaitingGame[]) => {
+      setInfo(gameDetailsInitial);
       setWaitingGames(currentGames);
       setShowGameOptions(true);
     },
@@ -34,8 +36,8 @@ function App() {
         setInfo({ ...info, flippedCards: [...info.flippedCards, card] });
       }
     },
-    onChangePlayer: (playerId: 1 | 2) => {
-      if (info.singlePlayer) {
+    onChangePlayer: (playerId?: 1 | 2) => {
+      if (!info.singlePlayer && !playerId) {
         return;
       }
 
@@ -47,7 +49,12 @@ function App() {
         player!.matchedCards.push(first!);
       }
 
-      setInfo({ ...info, currentPlayerId: playerId, flippedCards: [] });
+      const currentPlayerId = matched ? info.currentPlayerId : (playerId ?? info.currentPlayerId);
+
+      setInfo({ ...info, currentPlayerId, flippedCards: [] });
+    },
+    onFinishGame: (gameState: GameState, winnerPlayerId: PlayerId) => {
+      setInfo({ ...info, state: gameState, winnerPlayerId });
     },
   };
 
@@ -59,17 +66,35 @@ function App() {
   }
 
   function onChangePlayer() {
-    AppManager.sendChangePlayer();
+    AppManager.sendChangePlayer(!!info.singlePlayer);
   }
 
   function onPlayed(card: TCard) {
     AppManager.sendPlayed([card]);
   }
 
-  const started = info.state == GameState.PLAYING || info.state == GameState.FINISHED;
+  function onFinish(winnerPlayerId: PlayerId) {
+    AppManager.sendFinishGame(winnerPlayerId);
+  }
+
+  function onNewGame() {
+    AppManager.sendRestart();
+  }
+
+  const started =
+    info.state == GameState.PLAYING || info.state == GameState.FINISHED || info.state == GameState.ABORTED;
 
   return started ? (
-    <CardPanel myPlayerId={myPlayerId} gameDetails={info} onChangePlayer={onChangePlayer} onPlayed={onPlayed} />
+    <>
+      <CardPanel
+        myPlayerId={myPlayerId}
+        gameDetails={info}
+        onChangePlayer={onChangePlayer}
+        onPlayed={onPlayed}
+        onFinish={onFinish}
+      />
+      <EndGameOverlayer info={info} onNewGame={onNewGame} />
+    </>
   ) : (
     <LandingPage waitingGames={waitingGames} showGameOptions={showGameOptions} onStartGame={onStartGame} />
   );

@@ -1,22 +1,16 @@
-import { MessageId, StartOption } from './enums';
+import { GameState, MessageId, StartOption } from './enums';
 import { logger } from './logger';
 import type {
   ClientServerMsg,
   GameDetails,
   GameId,
+  Observer,
   PlayerId,
   PlayerName,
   ServerClientMsg,
   TCard,
   WaitingGame,
 } from './types';
-
-interface Observer {
-  onWelcome: Function;
-  onStartGame: Function;
-  onPlayed: Function;
-  onChangePlayer: Function;
-}
 
 class AppManager {
   ws?: WebSocket;
@@ -48,6 +42,11 @@ class AppManager {
         case MessageId.CHANGE_PLAYER:
           this.handleMessageChangePlayer(message);
           break;
+        case MessageId.FINISH_GAME:
+          this.handleMessageFinishGame(message);
+          break;
+        default:
+          throw new Error(`Unknown messageId`);
       }
     } catch (error) {
       logger.error(error, `Erro ao analisar a mensagem JSON: ${data}`);
@@ -74,6 +73,13 @@ class AppManager {
     this.observer?.onChangePlayer(message.playerId);
   }
 
+  private handleMessageFinishGame(message: {
+    gameState: GameState.ABORTED | GameState.FINISHED;
+    winnerPlayerId: PlayerId;
+  }) {
+    this.observer?.onFinishGame(message.gameState, message.winnerPlayerId);
+  }
+
   public sendStartGame(args: [StartOption, PlayerName, GameId?]) {
     this.send({ messageId: MessageId.NEW_GAME, args });
   }
@@ -82,12 +88,20 @@ class AppManager {
     this.send({ messageId: MessageId.PLAYED, args });
   };
 
-  public sendChangePlayer = () => {
+  public sendChangePlayer = (singlePlayer: boolean) => {
+    if (singlePlayer) {
+      this.observer?.onChangePlayer();
+    }
+
     this.send({ messageId: MessageId.CHANGE_PLAYER });
   };
 
-  public sendFinish = () => {
-    this.send({ messageId: MessageId.FINISH_GAME });
+  public sendFinishGame = (winnerPlayerId: PlayerId) => {
+    this.send({ messageId: MessageId.FINISH_GAME, args: [winnerPlayerId] });
+  };
+
+  public sendRestart = () => {
+    this.send({ messageId: MessageId.RESTART });
   };
 
   send(msg: ClientServerMsg) {

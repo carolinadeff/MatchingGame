@@ -1,25 +1,51 @@
 import { useEffect } from 'react';
 import Card from './Card';
-import type { TCard, GameDetails, Timeout } from '@/types';
+import type { TCard, GameDetails, Timeout, PlayerId } from '@/types';
 import { getCards } from '@/helpers/getCards';
+import PlayerScore from './PlayerScore';
 
 function CardPanel({
   gameDetails,
   myPlayerId,
   onPlayed,
   onChangePlayer,
+  onFinish,
 }: {
   gameDetails: GameDetails;
   myPlayerId: number;
   onPlayed: (card: TCard) => void;
   onChangePlayer: () => void;
+  onFinish: (playerId: PlayerId) => void;
 }) {
   const shuffledCards = getCards(20, gameDetails.scrambleOrder!);
 
   let timer: Timeout;
 
+  const iAmPlaying = gameDetails.currentPlayerId === myPlayerId;
+  const players = Array.from(gameDetails.players.values());
+
+  const matchedCards = players.map((player) => player.matchedCards).flat();
+  const validCards = shuffledCards.map((card) => {
+    card.matched = matchedCards.some((matched) => matched.pairId === card.pairId);
+    return card;
+  });
+
+  useEffect(() => {
+    if (matchedCards.length === gameDetails.numberOfCards! / 2 && iAmPlaying) {
+      handleFinishGame();
+    }
+  }, [matchedCards]);
+
+  useEffect(() => {
+    timer = setTimeout(() => {
+      handleFinishPlayerTurn();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [gameDetails.flippedCards]);
+
   function flip(card: TCard) {
-    if (!gameDetails.singlePlayer && gameDetails.currentPlayerId !== myPlayerId) {
+    if (!gameDetails.singlePlayer && !iAmPlaying) {
       return;
     }
 
@@ -40,66 +66,50 @@ function CardPanel({
     }
   }
 
+  function handleFinishGame() {
+    const [player1, player2] = players;
+    if (!player2) {
+      onFinish(player1.id);
+      return;
+    }
+    const winnerPlayerId = player1.matchedCards.length > player2.matchedCards.length ? player1.id : player2.id;
+    onFinish(winnerPlayerId);
+  }
+
   window.onclick = () => {
     handleFinishPlayerTurn();
     clearTimeout(timer);
   };
 
-  useEffect(() => {
-    timer = setTimeout(() => {
-      handleFinishPlayerTurn();
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [gameDetails.flippedCards]);
-
-  const players = Array.from(gameDetails.players.values());
-
-  const matchedCards = players.map((player) => player.matchedCards).flat();
-  const validCards = shuffledCards.filter((card) => !matchedCards.some((matched) => matched.pairId === card.pairId));
-
-  useEffect(() => {
-    return () => {
-      console.log(shuffledCards, matchedCards, validCards);
-    };
-  }, [validCards]);
-
   return (
-    <>
-      <div className="grid grid-cols-2 grid-rows-[30px_1fr]">
-        <h4>{players[0].name}</h4>
-        <div className="flex flex-wrap mb-10">
-          {players[0].matchedCards.map((card, index) => (
-            <div key={index} style={{ transform: `translateX(-${index * 50}px)` }}>
-              <Card small flipped src={card.src} />
-            </div>
-          ))}
-        </div>
-        {players[1] && (
-          <>
-            <h4>{players[1].name}</h4>
-            <div className="flex flex-wrap mb-10">
-              {players[1].matchedCards.map((card, index) => (
-                <div key={index} style={{ transform: `translateX(-${index * 50}px)` }}>
-                  <Card small flipped src={card.src} />
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+    <div className="grid grid-cols-2 grid-rows-[fit-content_1fr] gap-[20px]">
+      <PlayerScore
+        player={players[0]}
+        isPlaying={players[0].id === gameDetails.currentPlayerId}
+        extraClass={gameDetails.singlePlayer ? 'col-span-full items-center' : 'items-end'}
+        cardsExtraClass={gameDetails.singlePlayer ? `` : `-scale-x-100`}
+      />
+      {players[1] && (
+        <PlayerScore
+          player={players[1]}
+          isPlaying={players[1].id === gameDetails.currentPlayerId}
+          extraClass="items-start"
+        />
+      )}
 
-      <div className={`flex flex-wrap gap-6`}>
+      <div className={`flex flex-wrap gap-6 justify-center row-span-2 col-span-full`}>
         {validCards.map((card) => (
           <Card
             key={card.key}
             src={card.src}
             click={() => flip(card)}
             flipped={gameDetails.flippedCards.some((cardEl) => cardEl?.key === card?.key)}
+            matched={card.matched}
+            className={iAmPlaying ? '' : 'cursor-no-drop'}
           />
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

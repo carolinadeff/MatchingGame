@@ -1,1 +1,1 @@
-export default new WebSocket("ws://localhost:8080");
+export default new WebSocket('wss://matchinggameserver.fly.dev/');
