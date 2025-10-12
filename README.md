@@ -10,6 +10,8 @@ A playful memory game demonstrating WebSockets and a simplified Observer pattern
 
 🎯 Purpose: A fun way to explore and showcase these tools—hope you enjoy and have fun!
 
+server [here](https://github.com/carolinadeff/MatchingGameServer)
+
 🌐 Try it here: [Matching Game](https://carolinadeff.github.io/MatchingGame/)
 
 ![alt](./assets/memorygame.png)
